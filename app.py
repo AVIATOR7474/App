@@ -2,10 +2,10 @@ import streamlit as st
 import datetime
 import pandas as pd
 import os
-from weasyprint import HTML, CSS
 import base64
 import tempfile
 from io import BytesIO
+from fpdf import FPDF
 
 # Set page configuration
 st.set_page_config(
@@ -85,111 +85,149 @@ st.markdown(
 # Title with custom styling
 st.markdown('<h1 class="main-header">AL HAYAH REAL ESTATE INVESTMENT</h1>', unsafe_allow_html=True)
 
-# Function to create PDF
+# Function to create PDF using FPDF
 def create_pdf(report_data):
-    # Create HTML content for PDF
-    html_content = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>Real Estate Client Call Report</title>
-        <style>
-            @page {{
-                size: letter;
-                margin: 2cm;
-            }}
-            body {{
-                font-family: Arial, sans-serif;
-                line-height: 1.5;
-                color: #333;
-            }}
-            .header {{
-                text-align: center;
-                margin-bottom: 20px;
-            }}
-            .logo {{
-                max-width: 300px;
-                margin: 0 auto;
-                display: block;
-            }}
-            h1 {{
-                color: #b8860b;
-                font-size: 24px;
-                text-align: center;
-                margin-bottom: 20px;
-            }}
-            .report-title {{
-                font-size: 18px;
-                font-weight: bold;
-                margin-bottom: 15px;
-                color: #2c3e50;
-            }}
-            .section {{
-                margin-bottom: 15px;
-            }}
-            .grid-container {{
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 20px;
-            }}
-            .label {{
-                font-weight: bold;
-                color: #555;
-            }}
-            .value {{
-                margin-left: 10px;
-            }}
-            .footer {{
-                text-align: center;
-                font-size: 12px;
-                margin-top: 30px;
-                color: #777;
-            }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <img src="file://{os.path.abspath('assets/logo.jpg')}" class="logo">
-            <h1>AL HAYAH REAL ESTATE INVESTMENT</h1>
-        </div>
+    class PDF(FPDF):
+        def header(self):
+            # Logo
+            try:
+                self.image("assets/logo.jpg", 10, 8, 70)
+            except:
+                pass
+            # Title
+            self.set_font('Arial', 'B', 20)
+            self.set_text_color(184, 134, 11)  # Gold color
+            self.cell(0, 20, 'AL HAYAH REAL ESTATE INVESTMENT', 0, 1, 'C')
+            # Line break
+            self.ln(10)
         
-        <div class="report-title">{report_data["Report Name"]}</div>
-        
-        <div class="grid-container">
-            <div class="section">
-                <p><span class="label">Client Name:</span> <span class="value">{report_data["Client Name"]}</span></p>
-                <p><span class="label">Unit Type:</span> <span class="value">{report_data["Unit Type"]}</span></p>
-                <p><span class="label">Unit Area:</span> <span class="value">From {report_data["Unit Area From"]} to {report_data["Unit Area To"]} sq.m</span></p>
-                <p><span class="label">Number of Rooms:</span> <span class="value">{report_data["Number of Rooms"]}</span></p>
-                <p><span class="label">Finishing Type:</span> <span class="value">{report_data["Finishing Type"]}</span></p>
-                <p><span class="label">Location:</span> <span class="value">{report_data["Location"]}</span></p>
-            </div>
-            
-            <div class="section">
-                <p><span class="label">Report Date:</span> <span class="value">{report_data["Report Date"].strftime('%Y-%m-%d')}</span></p>
-                <p><span class="label">Budget:</span> <span class="value">{report_data["Budget"]}</span></p>
-                <p><span class="label">Payment Method:</span> <span class="value">{report_data["Payment Method"]}</span></p>
-                <p><span class="label">Delivery Date:</span> <span class="value">{report_data["Delivery Date"].strftime('%Y-%m-%d')}</span></p>
-                <p><span class="label">Sales Person:</span> <span class="value">{report_data["Sales Person"]}</span></p>
-                <p><span class="label">Sales Phone:</span> <span class="value">{report_data["Sales Phone"]}</span></p>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>© {datetime.datetime.now().year} AL HAYAH REAL ESTATE INVESTMENT - All Rights Reserved</p>
-        </div>
-    </body>
-    </html>
-    """
+        def footer(self):
+            # Position at 1.5 cm from bottom
+            self.set_y(-15)
+            # Arial italic 8
+            self.set_font('Arial', 'I', 8)
+            # Text color in gray
+            self.set_text_color(128)
+            # Page number
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+            # Copyright
+            self.set_y(-20)
+            self.cell(0, 10, f'© {datetime.datetime.now().year} AL HAYAH REAL ESTATE INVESTMENT - All Rights Reserved', 0, 0, 'C')
+    
+    # Create PDF instance
+    pdf = PDF()
+    pdf.add_page()
+    
+    # Report title
+    pdf.set_font('Arial', 'B', 16)
+    pdf.set_text_color(44, 62, 80)  # Dark blue
+    pdf.cell(0, 10, report_data["Report Name"], 0, 1, 'C')
+    pdf.ln(5)
+    
+    # Content
+    pdf.set_font('Arial', '', 12)
+    pdf.set_text_color(0, 0, 0)
+    
+    # Left column
+    col_width = 95
+    row_height = 10
+    
+    # Client information section
+    pdf.set_font('Arial', 'B', 14)
+    pdf.set_text_color(44, 62, 80)
+    pdf.cell(0, 10, 'Client Information', 0, 1)
+    pdf.ln(2)
+    
+    pdf.set_font('Arial', 'B', 12)
+    pdf.set_text_color(0, 0, 0)
+    
+    # Two columns layout
+    y_position = pdf.get_y()
+    
+    # Left column
+    pdf.set_xy(10, y_position)
+    pdf.cell(col_width, row_height, 'Client Name:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Client Name"], 0, 1)
+    
+    pdf.set_x(10)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Unit Type:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Unit Type"], 0, 1)
+    
+    pdf.set_x(10)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Unit Area:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, f'From {report_data["Unit Area From"]} to {report_data["Unit Area To"]} sq.m', 0, 1)
+    
+    pdf.set_x(10)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Number of Rooms:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, str(report_data["Number of Rooms"]), 0, 1)
+    
+    pdf.set_x(10)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Finishing Type:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Finishing Type"], 0, 1)
+    
+    pdf.set_x(10)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Location:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Location"], 0, 1)
+    
+    # Right column
+    pdf.set_xy(105, y_position)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Report Date:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Report Date"].strftime('%Y-%m-%d'), 0, 1)
+    
+    pdf.set_x(105)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Budget:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, str(report_data["Budget"]), 0, 1)
+    
+    pdf.set_x(105)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Payment Method:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Payment Method"], 0, 1)
+    
+    pdf.set_x(105)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Delivery Date:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Delivery Date"].strftime('%Y-%m-%d'), 0, 1)
+    
+    pdf.set_x(105)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Sales Person:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Sales Person"], 0, 1)
+    
+    pdf.set_x(105)
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(col_width, row_height, 'Sales Phone:', 0, 0)
+    pdf.set_font('Arial', '', 12)
+    pdf.cell(col_width, row_height, report_data["Sales Phone"], 0, 1)
     
     # Create a temporary file to store the PDF
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-        # Generate PDF from HTML
-        HTML(string=html_content).write_pdf(tmp.name)
+        pdf_output = BytesIO()
+        pdf.output(pdf_output)
+        pdf_bytes = pdf_output.getvalue()
+        
+        # Write to the temporary file
+        tmp.write(pdf_bytes)
         
         # Return the filename
-        return tmp.name
+        return tmp.name, pdf_bytes
 
 # Create a container for the form
 with st.container():
@@ -320,12 +358,9 @@ if 'submit_button' in locals() and submit_button:
     }
     
     # Generate PDF
-    pdf_file = create_pdf(report_data)
+    pdf_file, pdf_bytes = create_pdf(report_data)
     
-    # Read PDF file and create download button
-    with open(pdf_file, "rb") as f:
-        pdf_bytes = f.read()
-        
+    # Create download button
     st.markdown('<div class="pdf-download">', unsafe_allow_html=True)
     st.download_button(
         label="Download Report as PDF",
