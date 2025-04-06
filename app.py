@@ -5,7 +5,13 @@ import os
 import base64
 import tempfile
 from io import BytesIO
-from fpdf import FPDF
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 # Set page configuration
 st.set_page_config(
@@ -85,148 +91,120 @@ st.markdown(
 # Title with custom styling
 st.markdown('<h1 class="main-header">AL HAYAH REAL ESTATE INVESTMENT</h1>', unsafe_allow_html=True)
 
-# Function to create PDF using FPDF
+# Function to create PDF using ReportLab
 def create_pdf(report_data):
-    class PDF(FPDF):
-        def header(self):
-            # Logo
-            try:
-                self.image("assets/logo.jpg", 10, 8, 70)
-            except:
-                pass
-            # Title
-            self.set_font('Arial', 'B', 20)
-            self.set_text_color(184, 134, 11)  # Gold color
-            self.cell(0, 20, 'AL HAYAH REAL ESTATE INVESTMENT', 0, 1, 'C')
-            # Line break
-            self.ln(10)
-        
-        def footer(self):
-            # Position at 1.5 cm from bottom
-            self.set_y(-15)
-            # Arial italic 8
-            self.set_font('Arial', 'I', 8)
-            # Text color in gray
-            self.set_text_color(128)
-            # Page number
-            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-            # Copyright
-            self.set_y(-20)
-            self.cell(0, 10, f'© {datetime.datetime.now().year} AL HAYAH REAL ESTATE INVESTMENT - All Rights Reserved', 0, 0, 'C')
+    # Create a BytesIO object to store the PDF
+    buffer = BytesIO()
     
-    # Create PDF instance
-    pdf = PDF()
-    pdf.add_page()
+    # Create the PDF document
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
     
-    # Report title
-    pdf.set_font('Arial', 'B', 16)
-    pdf.set_text_color(44, 62, 80)  # Dark blue
-    pdf.cell(0, 10, report_data["Report Name"], 0, 1, 'C')
-    pdf.ln(5)
+    # Container for the 'Flowable' objects
+    elements = []
     
-    # Content
-    pdf.set_font('Arial', '', 12)
-    pdf.set_text_color(0, 0, 0)
+    # Register a standard font
+    styles = getSampleStyleSheet()
     
-    # Left column
-    col_width = 95
-    row_height = 10
+    # Create custom styles
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Heading1'],
+        fontSize=18,
+        textColor=colors.Color(184/255, 134/255, 11/255),  # Gold color
+        alignment=1,  # Center alignment
+        spaceAfter=12
+    )
     
-    # Client information section
-    pdf.set_font('Arial', 'B', 14)
-    pdf.set_text_color(44, 62, 80)
-    pdf.cell(0, 10, 'Client Information', 0, 1)
-    pdf.ln(2)
+    heading_style = ParagraphStyle(
+        'Heading',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.Color(44/255, 62/255, 80/255),  # Dark blue
+        spaceAfter=6
+    )
     
-    pdf.set_font('Arial', 'B', 12)
-    pdf.set_text_color(0, 0, 0)
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=6
+    )
     
-    # Two columns layout
-    y_position = pdf.get_y()
+    # Add logo
+    try:
+        logo_path = "assets/logo.jpg"
+        img = Image(logo_path, width=2.5*inch, height=1*inch)
+        elements.append(img)
+    except:
+        pass
     
-    # Left column
-    pdf.set_xy(10, y_position)
-    pdf.cell(col_width, row_height, 'Client Name:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Client Name"], 0, 1)
+    # Add company name
+    elements.append(Paragraph("AL HAYAH REAL ESTATE INVESTMENT", title_style))
+    elements.append(Spacer(1, 0.25*inch))
     
-    pdf.set_x(10)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Unit Type:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Unit Type"], 0, 1)
+    # Add report title
+    elements.append(Paragraph(report_data["Report Name"], heading_style))
+    elements.append(Spacer(1, 0.25*inch))
     
-    pdf.set_x(10)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Unit Area:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, f'From {report_data["Unit Area From"]} to {report_data["Unit Area To"]} sq.m', 0, 1)
+    # Create data for the table
+    data = [
+        ["Client Information", ""],
+        ["Client Name:", report_data["Client Name"]],
+        ["Unit Type:", report_data["Unit Type"]],
+        ["Unit Area:", f"From {report_data['Unit Area From']} to {report_data['Unit Area To']} sq.m"],
+        ["Number of Rooms:", str(report_data["Number of Rooms"])],
+        ["Finishing Type:", report_data["Finishing Type"]],
+        ["Location:", report_data["Location"]],
+        ["", ""],
+        ["Report Details", ""],
+        ["Report Date:", report_data["Report Date"].strftime('%Y-%m-%d')],
+        ["Budget:", str(report_data["Budget"])],
+        ["Payment Method:", report_data["Payment Method"]],
+        ["Delivery Date:", report_data["Delivery Date"].strftime('%Y-%m-%d')],
+        ["Sales Person:", report_data["Sales Person"]],
+        ["Sales Phone:", report_data["Sales Phone"]]
+    ]
     
-    pdf.set_x(10)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Number of Rooms:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, str(report_data["Number of Rooms"]), 0, 1)
+    # Create the table
+    table = Table(data, colWidths=[2*inch, 3*inch])
     
-    pdf.set_x(10)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Finishing Type:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Finishing Type"], 0, 1)
+    # Add style to the table
+    table_style = TableStyle([
+        ('BACKGROUND', (0, 0), (1, 0), colors.Color(184/255, 134/255, 11/255, 0.2)),
+        ('BACKGROUND', (0, 8), (1, 8), colors.Color(184/255, 134/255, 11/255, 0.2)),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.Color(44/255, 62/255, 80/255)),
+        ('TEXTCOLOR', (0, 0), (1, 0), colors.Color(44/255, 62/255, 80/255)),
+        ('TEXTCOLOR', (0, 8), (1, 8), colors.Color(44/255, 62/255, 80/255)),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 8), (1, 8), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 1), (1, 6), 0.5, colors.grey),
+        ('GRID', (0, 9), (1, 14), 0.5, colors.grey),
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 8), (1, 8)),
+    ])
     
-    pdf.set_x(10)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Location:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Location"], 0, 1)
+    table.setStyle(table_style)
+    elements.append(table)
     
-    # Right column
-    pdf.set_xy(105, y_position)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Report Date:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Report Date"].strftime('%Y-%m-%d'), 0, 1)
+    # Add footer
+    elements.append(Spacer(1, 0.5*inch))
+    footer_text = f"© {datetime.datetime.now().year} AL HAYAH REAL ESTATE INVESTMENT - All Rights Reserved"
+    elements.append(Paragraph(footer_text, normal_style))
     
-    pdf.set_x(105)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Budget:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, str(report_data["Budget"]), 0, 1)
+    # Build the PDF
+    doc.build(elements)
     
-    pdf.set_x(105)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Payment Method:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Payment Method"], 0, 1)
-    
-    pdf.set_x(105)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Delivery Date:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Delivery Date"].strftime('%Y-%m-%d'), 0, 1)
-    
-    pdf.set_x(105)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Sales Person:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Sales Person"], 0, 1)
-    
-    pdf.set_x(105)
-    pdf.set_font('Arial', 'B', 12)
-    pdf.cell(col_width, row_height, 'Sales Phone:', 0, 0)
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(col_width, row_height, report_data["Sales Phone"], 0, 1)
+    # Get the value of the BytesIO buffer
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
     
     # Create a temporary file to store the PDF
     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
-        pdf_output = BytesIO()
-        pdf.output(pdf_output)
-        pdf_bytes = pdf_output.getvalue()
-        
-        # Write to the temporary file
         tmp.write(pdf_bytes)
-        
-        # Return the filename
         return tmp.name, pdf_bytes
 
 # Create a container for the form
