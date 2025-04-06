@@ -1,0 +1,34 @@
+# This file is used to configure the Streamlit app for deployment
+
+[theme]
+# Primary accent color for interactive elements
+primaryColor = "#b8860b"
+
+# Background color for the main content area
+backgroundColor = "#ffffff"
+
+# Background color for sidebar and most interactive widgets
+secondaryBackgroundColor = "#f8f9fa"
+
+# Color used for almost all text
+textColor = "#2c3e50"
+
+# Font family for all text in the app, except code blocks
+font = "Montserrat"
+
+[server]
+# If true, will show a warning when you run on a publicly accessible URL
+headless = true
+
+# Enable cors for all origins
+enableCORS = true
+
+# Enable xsrf protection
+enableXsrfProtection = true
+
+[browser]
+# Internet address where users should point their browsers in order to connect to the app
+serverAddress = "0.0.0.0"
+
+# Whether to send usage statistics to Streamlit
+gatherUsageStats = false
